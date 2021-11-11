@@ -1,0 +1,72 @@
+#https://matplotlib.org/tutorials/introductory/customizing.html
+
+
+# ***************************************************************************
+# * LINES                                                                   *
+# ***************************************************************************
+# See https://matplotlib.org/api/artist_api.html#module-matplotlib.lines
+# for more information on line properties.
+lines.linewidth: 1.8               # line width in points
+
+
+# ***************************************************************************
+# * AXES                                                                    *
+# ***************************************************************************
+axes.titlesize : 20
+axes.labelsize : 20
+axes.linewidth : 1
+axes.prop_cycle: cycler('color', ['4C72B0', '55A868', 'C44E52', '8172B2', 'CCB974', '64B5CD'])
+axes.labelweight : normal
+# ***************************************************************************
+# * TICKS                                                                   *
+# ***************************************************************************
+xtick.labelsize : 14
+xtick.direction : in
+ytick.labelsize : 14
+ytick.direction : in
+
+# ***************************************************************************
+# * FONT                                                                    *
+# ***************************************************************************
+font.family : Times New Roman
+text.color: .10
+
+# ***************************************************************************
+# * LaTeX                                                                   *
+# ***************************************************************************
+text.usetex        : false
+
+# ***************************************************************************
+# * LEGEND                                                                  *
+# ***************************************************************************
+legend.edgecolor:     0.5      # background patch boundary color
+legend.fancybox:      False     # legend background, else a rectangle
+legend.markerscale:   1.5      # the relative size of legend markers vs. original
+legend.fontsize:      20
+legend.title_fontsize: 17    # None sets to the same as the default axes.
+
+# Dimensions as fraction of fontsize:
+legend.borderpad:     0.5  # border whitespace
+
+# ***************************************************************************
+# * FIGURE                                                                  *
+# ***************************************************************************
+# See https://matplotlib.org/api/figure_api.html#matplotlib.figure.Figure
+figure.figsize:     7,7   # figure size in inches
+figure.subplot.left:   0.125
+figure.subplot.bottom: 0.11
+
+# ***************************************************************************
+# * IMAGES                                                                  *
+# ***************************************************************************
+image.aspect: equal                # {equal, auto} or a number
+
+
+
+# ***************************************************************************
+# * MathMode                                                                *
+# ***************************************************************************
+# The following settings allow you to select the fonts in math mode.
+mathtext.fontset: cm
+mathtext.default: regular
+
