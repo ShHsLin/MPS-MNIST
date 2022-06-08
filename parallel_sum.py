@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 import data_loader
 import mps_func
-
+import tqdm
 
 class DataProcessing:
     def __init__(self, dataset, even_distribution=False, max_nb_images=None):
@@ -124,7 +124,7 @@ class MPS_model:
 
     def create_mps_dict_iter(self, chi):
         mps_dict = {}
-        for label in self.images_dict.keys():
+        for label in tqdm.tqdm(self.images_dict.keys()):
             images = self.images_dict[label]  # (num_data, num_pixels)
             num_data, num_pixels = images.shape
 
@@ -151,8 +151,8 @@ class MPS_model:
 
             while(len(mps_iter_list)>1):
                 print("new iter")
-                for mm in mps_iter_list:
-                    print(mm[50].shape)
+                # for mm in mps_iter_list:
+                #     print(mm[50].shape)
 
                 new_mps_iter_list = []
 
@@ -190,10 +190,10 @@ pooled_test_data = DataProcessing(test_data)
 
 print("pooled")
 
-for chi in [30, 40, 50]:
+for chi in tqdm.tqdm([30, 40, 50]):
     model = MPS_model(pooled_training_data.images_dict, chi=chi)
 
-    import pickle; pickle.dump(model.mps_dict, open('/tuph/t30/space/ga63zuh/qTEBD/sampling_mps/training_chi%d.pkl' % chi, 'wb'))
+    import pickle; pickle.dump(model.mps_dict, open('/results/training_chi%d.pkl' % chi, 'wb'))
 
 # print("MPS created")
 # print(mps_func.MPS_dot(model.mps_dict[0], model.mps_dict[0]))

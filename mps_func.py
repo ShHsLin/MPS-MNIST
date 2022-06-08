@@ -2,8 +2,8 @@ import numpy as np
 import scipy
 
 try:
-    raise
     import tcl.tcl
+
     einsum = tcl.tcl.einsum
 except:
     einsum = np.einsum
@@ -13,40 +13,42 @@ def get_phase(r):
     if abs(r) < 1e-14:
         return 1
     else:
-        return r/abs(r)
+        return r / abs(r)
+
 
 def svd(theta, compute_uv=True, full_matrices=False, fix_gauge=True):
     """SVD with gesvd backup"""
     try:
-        U,s,Vh = scipy.linalg.svd(theta,
-                             compute_uv=compute_uv,
-                             full_matrices=full_matrices)
+        U, s, Vh = scipy.linalg.svd(theta,
+                                    compute_uv=compute_uv,
+                                    full_matrices=full_matrices)
     except np.linalg.linalg.LinAlgError:
         print("*gesvd*")
-        U,s,Vh = scipy.linalg.svd(theta,
-                             compute_uv=compute_uv,
-                             full_matrices=full_matrices,
-                             lapack_driver='gesvd')
+        U, s, Vh = scipy.linalg.svd(theta,
+                                    compute_uv=compute_uv,
+                                    full_matrices=full_matrices,
+                                    lapack_driver='gesvd')
     if fix_gauge:
         maxV = [v[abs(v).argmax()] for v in Vh]
-        phase = [1/get_phase(r) for r in maxV]
-        phase_inv = [1./p for p in phase]
+        phase = [1 / get_phase(r) for r in maxV]
+        phase_inv = [1. / p for p in phase]
         phase = np.diag(phase)
         phase_inv = np.diag(phase_inv)
-        Vh = phase @ Vh #fixes rows of Vh
-        U = U @ phase_inv #changes columns of U accordingly
+        Vh = phase @ Vh  # fixes rows of Vh
+        U = U @ phase_inv  # changes columns of U accordingly
 
-    assert np.linalg.norm(U@np.diag(s)@Vh-theta) < 1e-10
-    return U,s,Vh
+    assert np.linalg.norm(U @ np.diag(s) @ Vh - theta) < 1e-10
+    return U, s, Vh
 
 
 def plrq_2_plr(A_list):
     new_A_list = []
     for a in A_list:
         p_dim, l_dim, r_dim, q_dim = a.shape
-        new_A_list.append(np.transpose(a, [0,3,1,2]).reshape([p_dim*q_dim, l_dim, r_dim]))
+        new_A_list.append(np.transpose(a, [0, 3, 1, 2]).reshape([p_dim * q_dim, l_dim, r_dim]))
 
     return new_A_list
+
 
 def plr_2_plrq(A_list, p_dim=2, q_dim=2):
     new_A_list = []
@@ -56,11 +58,14 @@ def plr_2_plrq(A_list, p_dim=2, q_dim=2):
 
     return new_A_list
 
+
 def lpr_2_plr(A_list):
-    return [np.transpose(a, [1,0,2]) for a in A_list]
+    return [np.transpose(a, [1, 0, 2]) for a in A_list]
+
 
 def plr_2_lpr(A_list):
-    return [np.transpose(a, [1,0,2]) for a in A_list]
+    return [np.transpose(a, [1, 0, 2]) for a in A_list]
+
 
 def MPS_dot_left_env(mps_up, mps_down, site_l, cache_env_list=None):
     '''
@@ -97,7 +102,7 @@ def MPS_dot_left_env(mps_up, mps_down, site_l, cache_env_list=None):
 
 
 def MPS_dot_right_env(mps_up, mps_down, site_l, cache_env_list=None):
-    '''
+    """
     # Complex compatible
     Goal:
         Contract and form the right environment of site_l
@@ -115,7 +120,7 @@ def MPS_dot_right_env(mps_up, mps_down, site_l, cache_env_list=None):
         |site_l    environment     |
       -----       -----------------|
                     (site_l+1),...,L-1
-    '''
+    """
     L = len(mps_up)
     dtype = mps_up[0].dtype
     assert dtype == mps_down[0].dtype
@@ -125,7 +130,7 @@ def MPS_dot_right_env(mps_up, mps_down, site_l, cache_env_list=None):
     right_env = np.eye(1, dtype=dtype)
     for idx in range(L - 1, site_l, -1):
         right_env = einsum('kli, ij ->klj', mps_up[idx].conjugate(),
-                              right_env)
+                           right_env)
         right_env = einsum('klj,mlj->km', right_env, mps_down[idx])
         if not (cache_env_list is None):
             cache_env_list[idx] = right_env
@@ -197,7 +202,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
         # svd to shift central site
         l_dim, d, r_dim = mps_trial[0].shape
         U, s, Vh = svd(mps_trial[0].reshape((l_dim * d, r_dim)),
-                                 full_matrices=False)
+                       full_matrices=False)
         rank = s.size
         s /= np.linalg.norm(s)
         mps_trial[0] = U.reshape((l_dim, d, rank))
@@ -205,7 +210,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
                               np.diag(s).dot(Vh), mps_trial[1])
         # update env
         left_env = einsum('ijk,ijl->kl', mps_trial[0].conjugate(),
-                             mps_target[0])
+                          mps_target[0])
         cache_env_list[0] = left_env
         cache_env_list[1] = None
 
@@ -220,7 +225,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
             l_dim, d, r_dim = mps_trial[site].shape
             U, s, Vh = svd(mps_trial[site].reshape(
                 (l_dim * d, r_dim)),
-                                     full_matrices=False)
+                full_matrices=False)
             rank = s.size
             s /= np.linalg.norm(s)
             mps_trial[site] = U.reshape((l_dim, d, rank))
@@ -243,7 +248,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
         # svd to shift central site
         l_dim, d, r_dim = mps_trial[L - 1].shape
         U, s, Vh = svd(mps_trial[L - 1].reshape((l_dim, d * r_dim)),
-                                 full_matrices=False)
+                       full_matrices=False)
         rank = s.size
         s /= np.linalg.norm(s)
         mps_trial[L - 1] = Vh.reshape((rank, d, r_dim))
@@ -269,7 +274,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
             l_dim, d, r_dim = mps_trial[site].shape
             U, s, Vh = svd(mps_trial[site].reshape(
                 (l_dim, d * r_dim)),
-                                     full_matrices=False)
+                full_matrices=False)
             rank = s.size
             s /= np.linalg.norm(s)
             mps_trial[site] = Vh.reshape((rank, d, r_dim))
@@ -293,6 +298,7 @@ def MPS_compression_variational(mps_trial, mps_target, max_iter=30, tol=1e-4,
         old_trunc_err = trunc_err
 
     return trunc_err
+
 
 def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, max_iter=30, tol=1e-4,
                                          verbose=0):
@@ -352,19 +358,19 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
         # svd to shift central site
         l_dim, d, r_dim = mps_comp[0].shape
         U, s, Vh = svd(mps_comp[0].reshape((l_dim * d, r_dim)),
-                                 full_matrices=False)
+                       full_matrices=False)
         rank = s.size
         s /= np.linalg.norm(s)
         mps_comp[0] = U.reshape((l_dim, d, rank))
         mps_comp[1] = einsum('ij,jkl->ikl',
-                              np.diag(s).dot(Vh), mps_comp[1])
+                             np.diag(s).dot(Vh), mps_comp[1])
         # update env
         left_env_1 = einsum('ijk,ijl->kl', mps_comp[0].conjugate(),
-                             mps_target_1[0])
+                            mps_target_1[0])
         cache_env_list_1[0] = left_env_1
         cache_env_list_1[1] = None
         left_env_2 = einsum('ijk,ijl->kl', mps_comp[0].conjugate(),
-                             mps_target_2[0])
+                            mps_target_2[0])
         cache_env_list_2[0] = left_env_2
         cache_env_list_2[1] = None
 
@@ -384,13 +390,13 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
             l_dim, d, r_dim = mps_comp[site].shape
             U, s, Vh = svd(mps_comp[site].reshape(
                 (l_dim * d, r_dim)),
-                                     full_matrices=False)
+                full_matrices=False)
             rank = s.size
             s /= np.linalg.norm(s)
             mps_comp[site] = U.reshape((l_dim, d, rank))
             mps_comp[site + 1] = einsum('ij,jkl->ikl',
-                                         np.diag(s).dot(Vh),
-                                         mps_comp[site + 1])
+                                        np.diag(s).dot(Vh),
+                                        mps_comp[site + 1])
             # update env
             left_env_1 = einsum('ij,ikl->jkl', left_env_1,
                                 mps_comp[site].conjugate())
@@ -402,7 +408,6 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
             left_env_2 = einsum('ijk,ijl->kl', left_env_2, mps_target_2[site])
             cache_env_list_2[site] = left_env_2
             cache_env_list_2[site + 1] = None
-
 
         # site = L-1
         right_env_1 = np.eye(1)
@@ -417,22 +422,22 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
         # svd to shift central site
         l_dim, d, r_dim = mps_comp[L - 1].shape
         U, s, Vh = svd(mps_comp[L - 1].reshape((l_dim, d * r_dim)),
-                                 full_matrices=False)
+                       full_matrices=False)
         rank = s.size
         s /= np.linalg.norm(s)
         mps_comp[L - 1] = Vh.reshape((rank, d, r_dim))
         mps_comp[L - 2] = einsum('ijk,kl->ijl', mps_comp[L - 2],
-                                  U.dot(np.diag(s)))
+                                 U.dot(np.diag(s)))
         # No update for left_env
 
         # site = L-1
         # But update for right_env
         right_env_1 = einsum('ijk,ljk->il', mps_comp[L - 1].conjugate(),
-                           mps_target_1[L - 1])
+                             mps_target_1[L - 1])
         cache_env_list_1[L - 1] = right_env_1
         cache_env_list_1[L - 2] = None
         right_env_2 = einsum('ijk,ljk->il', mps_comp[L - 1].conjugate(),
-                           mps_target_2[L - 1])
+                             mps_target_2[L - 1])
         cache_env_list_2[L - 1] = right_env_2
         cache_env_list_2[L - 2] = None
 
@@ -440,24 +445,24 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
             right_env_1 = cache_env_list_1[site + 1]
             left_env_1 = cache_env_list_1[site - 1]
             update_tensor_1 = einsum('ij,jkl->ikl', left_env_1,
-                                   mps_target_1[site])
+                                     mps_target_1[site])
             update_tensor_1 = einsum('ikl,ml->ikm', update_tensor_1, right_env_1)
             right_env_2 = cache_env_list_2[site + 1]
             left_env_2 = cache_env_list_2[site - 1]
             update_tensor_2 = einsum('ij,jkl->ikl', left_env_2,
-                                   mps_target_2[site])
+                                     mps_target_2[site])
             update_tensor_2 = einsum('ikl,ml->ikm', update_tensor_2, right_env_2)
             mps_comp[site] = update_tensor_1 + update_tensor_2
             # svd to shift central site
             l_dim, d, r_dim = mps_comp[site].shape
             U, s, Vh = svd(mps_comp[site].reshape(
                 (l_dim, d * r_dim)),
-                                     full_matrices=False)
+                full_matrices=False)
             rank = s.size
             s /= np.linalg.norm(s)
             mps_comp[site] = Vh.reshape((rank, d, r_dim))
             mps_comp[site - 1] = einsum('ijk,kl->ijl', mps_comp[site - 1],
-                                         U.dot(np.diag(s)))
+                                        U.dot(np.diag(s)))
             # update env
             right_env_1 = einsum('kli, ij ->klj', mps_comp[site].conjugate(),
                                  right_env_1)
@@ -473,7 +478,7 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
         # site = 0
         trunc_err = 1. - np.square(np.abs(MPS_dot(mps_comp, mps_target_1) +
                                           MPS_dot(mps_comp, mps_target_2)
-                                         ))
+                                          ))
         if verbose:
             print(('var_trunc_err = ', trunc_err))
 
@@ -485,7 +490,6 @@ def addition_MPS_compression_variational(mps_comp, mps_target_1, mps_target_2, m
     return mps_comp
 
 
-
 def MPS_2_state(mps):
     '''
     Goal:
@@ -493,13 +497,14 @@ def MPS_2_state(mps):
     Input:
         MPS: in [p,l,r] form
     '''
-    Vec = mps[0][:,0,:]
+    Vec = mps[0][:, 0, :]
     for idx in range(1, len(mps)):
         Vec = einsum('pa,qal->pql', Vec, mps[idx])
         dim_p, dim_q, dim_l = Vec.shape
         Vec = Vec.reshape([dim_p * dim_q, dim_l])
 
     return Vec.flatten()
+
 
 def state_2_MPS(psi, L, chimax):
     '''
@@ -508,12 +513,12 @@ def state_2_MPS(psi, L, chimax):
         L: the system size
         chimax: the maximum bond dimension
     '''
-    psi_aR = np.reshape(psi, (1, 2**L))
+    psi_aR = np.reshape(psi, (1, 2 ** L))
     Ms = []
-    for n in range(1, L+1):
+    for n in range(1, L + 1):
         chi_n, dim_R = psi_aR.shape
-        assert dim_R == 2**(L-(n-1))
-        psi_LR = np.reshape(psi_aR, (chi_n*2, dim_R//2))
+        assert dim_R == 2 ** (L - (n - 1))
+        psi_LR = np.reshape(psi_aR, (chi_n * 2, dim_R // 2))
         M_n, lambda_n, psi_tilde = svd(psi_LR, full_matrices=False)
         if len(lambda_n) > chimax:
             keep = np.argsort(lambda_n)[::-1][:chimax]
@@ -523,9 +528,10 @@ def state_2_MPS(psi, L, chimax):
         chi_np1 = len(lambda_n)
         M_n = np.reshape(M_n, (chi_n, 2, chi_np1))
         Ms.append(M_n)
-        psi_aR = lambda_n[:, np.newaxis] * psi_tilde[:,:]
+        psi_aR = lambda_n[:, np.newaxis] * psi_tilde[:, :]
     assert psi_aR.shape == (1, 1)
     return lpr_2_plr(Ms)
+
 
 def MPO_2_operator(mpo):
     '''
@@ -538,10 +544,11 @@ def MPO_2_operator(mpo):
     for idx in range(1, len(mpo)):
         Op = einsum('paq,PalQ->pPlqQ', Op, mpo[idx])
         dim_p, dim_P, dim_l, dim_q, dim_Q = Op.shape
-        Op = Op.reshape([dim_p*dim_P, dim_l, dim_q*dim_Q])
+        Op = Op.reshape([dim_p * dim_P, dim_l, dim_q * dim_Q])
 
     assert Op.shape[1] == 1
-    return Op[:,0,:]
+    return Op[:, 0, :]
+
 
 def operator_2_MPO(op, L, chimax):
     '''
@@ -552,13 +559,13 @@ def operator_2_MPO(op, L, chimax):
     Return:
         MPO in [p, l, r, q] form
     '''
-    op_aR = np.reshape(op, (1, 2**L, 2**L))
+    op_aR = np.reshape(op, (1, 2 ** L, 2 ** L))
     Ms = []
-    for n in range(1, L+1):
+    for n in range(1, L + 1):
         chi_n, dim_R1, dim_R2 = op_aR.shape
-        assert dim_R1 == 2**(L-(n-1))
-        op_LR = np.reshape(op_aR, [chi_n*2, dim_R1//2, 2, dim_R2//2])
-        op_LR = np.transpose(op_LR, [0, 2, 1, 3]).reshape([chi_n*4, (dim_R1//2) * (dim_R2//2)])
+        assert dim_R1 == 2 ** (L - (n - 1))
+        op_LR = np.reshape(op_aR, [chi_n * 2, dim_R1 // 2, 2, dim_R2 // 2])
+        op_LR = np.transpose(op_LR, [0, 2, 1, 3]).reshape([chi_n * 4, (dim_R1 // 2) * (dim_R2 // 2)])
         M_n, lambda_n, op_tilde = svd(op_LR, full_matrices=False)
         if len(lambda_n) > chimax:
             keep = np.argsort(lambda_n)[::-1][:chimax]
@@ -569,12 +576,13 @@ def operator_2_MPO(op, L, chimax):
         chi_np1 = len(lambda_n)
         M_n = np.reshape(M_n, (chi_n, 2, 2, chi_np1))
         Ms.append(M_n.transpose([1, 0, 3, 2]))
-        op_aR = lambda_n[:, np.newaxis] * op_tilde[:,:]
-        op_aR = op_aR.reshape([chi_np1, (dim_R1//2), (dim_R2//2)])
+        op_aR = lambda_n[:, np.newaxis] * op_tilde[:, :]
+        op_aR = op_aR.reshape([chi_np1, (dim_R1 // 2), (dim_R2 // 2)])
 
     assert op_aR.shape == (1, 1, 1)
     Ms[-1] = Ms[-1] * op_aR[0, 0, 0]
     return Ms
+
 
 def overlap(psi1, psi2):
     '''
@@ -582,16 +590,17 @@ def overlap(psi1, psi2):
     psi1 : with dimension [p, l, r]
     psi2 : with dimension [p, l, r]
     '''
-    N = np.ones([1,1]) # a ap 
+    N = np.ones([1, 1])  # a ap
     L = len(psi1)
     for i in np.arange(L):
-        N = np.tensordot(N, np.conj(psi1[i]), axes=(1,1))  # a (ap), p (lp) rp -> a, p, rp
-        N = np.tensordot(N,psi2[i], axes=([0,1],[1,0])) # (a) (p) rp, (p) (l) r -> rp r
-        N = np.transpose(N, [1,0])
+        N = np.tensordot(N, np.conj(psi1[i]), axes=(1, 1))  # a (ap), p (lp) rp -> a, p, rp
+        N = np.tensordot(N, psi2[i], axes=([0, 1], [1, 0]))  # (a) (p) rp, (p) (l) r -> rp r
+        N = np.transpose(N, [1, 0])
 
     assert N.size == 1
     N = np.trace(N)
-    return(N)
+    return (N)
+
 
 def expectation_values_1_site(A_list, Op_list, check_norm=True):
     if check_norm:
@@ -604,23 +613,24 @@ def expectation_values_1_site(A_list, Op_list, check_norm=True):
     Lp_list = [Lp]
 
     for i in range(L):
-        Lp = np.tensordot(Lp, A_list[i], axes=(0, 1)) # ap i b
-        Lp = np.tensordot(Lp, np.conj(A_list[i]), axes=([0, 1], [1,0])) # b bp
+        Lp = np.tensordot(Lp, A_list[i], axes=(0, 1))  # ap i b
+        Lp = np.tensordot(Lp, np.conj(A_list[i]), axes=([0, 1], [1, 0]))  # b bp
         Lp_list.append(Lp)
 
     Rp = np.ones([1, 1])
 
     Op_per_site = np.zeros([L], dtype=np.complex)
     for i in range(L - 2, -2, -1):
-        Rp = np.tensordot(np.conj(A_list[i+1]), Rp, axes=(2, 1)) #[p,l,r] [d,u] -> [p,l,d]
-        Op = np.tensordot(Op_list[i+1], Rp, axes=(1, 0)) #[p,q], [q,l,d] -> [p,l,d]
-        Op = np.tensordot(Op, A_list[i+1], axes=([0,2], [0,2])) #[p,ul,d], [p,dl,rr] -> [ul, dl]
-        Op = np.tensordot(Lp_list[i+1], Op, axes=([0,1], [1,0]))
-        Op_per_site[i+1] = Op[None][0]
+        Rp = np.tensordot(np.conj(A_list[i + 1]), Rp, axes=(2, 1))  # [p,l,r] [d,u] -> [p,l,d]
+        Op = np.tensordot(Op_list[i + 1], Rp, axes=(1, 0))  # [p,q], [q,l,d] -> [p,l,d]
+        Op = np.tensordot(Op, A_list[i + 1], axes=([0, 2], [0, 2]))  # [p,ul,d], [p,dl,rr] -> [ul, dl]
+        Op = np.tensordot(Lp_list[i + 1], Op, axes=([0, 1], [1, 0]))
+        Op_per_site[i + 1] = Op[None][0]
 
-        Rp = np.tensordot(A_list[i+1],Rp,axes=([0,2], [0,2]))
+        Rp = np.tensordot(A_list[i + 1], Rp, axes=([0, 2], [0, 2]))
 
     return Op_per_site
+
 
 def expectation_values(A_list, H_list, check_norm=True):
     if check_norm:
@@ -633,24 +643,25 @@ def expectation_values(A_list, H_list, check_norm=True):
     Lp_list = [Lp]
 
     for i in range(L):
-        Lp = np.tensordot(Lp, A_list[i], axes=(0, 1)) # ap i b
-        Lp = np.tensordot(Lp, np.conj(A_list[i]), axes=([0, 1], [1,0])) # b bp
+        Lp = np.tensordot(Lp, A_list[i], axes=(0, 1))  # ap i b
+        Lp = np.tensordot(Lp, np.conj(A_list[i]), axes=([0, 1], [1, 0]))  # b bp
         Lp_list.append(Lp)
 
     Rp = np.ones([1, 1])
 
     E_list = []
     for i in range(L - 2, -1, -1):
-        Rp = np.tensordot(np.conj(A_list[i+1]), Rp, axes=(2, 1)) #[p,l,r] [d,u] -> [p,l,d]
-        E = np.tensordot(np.conj(A_list[i]), Rp, axes=(2, 1)) #[p,l,r] [q,L,R] -> [p,l,q,R]
-        E = np.tensordot(H_list[i],E, axes=([0,1], [0,2])) # [p,q, r,s] , [p,l,q,R] -> [r,s, l,R]
-        E = np.tensordot(A_list[i+1],E, axes=([0,2], [1,3])) # [s, L, R], [r,s, l,R] -> [L, r, l]
-        E = np.tensordot(A_list[i],E, axes=([0,2], [1,0])) # [r, ll, L] [L, r, l] -> [ll, l]
-        E = np.tensordot(Lp_list[i],E, axes=([0,1],[0,1]))
-        Rp = np.tensordot(A_list[i+1],Rp,axes=([0,2], [0,2]))
+        Rp = np.tensordot(np.conj(A_list[i + 1]), Rp, axes=(2, 1))  # [p,l,r] [d,u] -> [p,l,d]
+        E = np.tensordot(np.conj(A_list[i]), Rp, axes=(2, 1))  # [p,l,r] [q,L,R] -> [p,l,q,R]
+        E = np.tensordot(H_list[i], E, axes=([0, 1], [0, 2]))  # [p,q, r,s] , [p,l,q,R] -> [r,s, l,R]
+        E = np.tensordot(A_list[i + 1], E, axes=([0, 2], [1, 3]))  # [s, L, R], [r,s, l,R] -> [L, r, l]
+        E = np.tensordot(A_list[i], E, axes=([0, 2], [1, 0]))  # [r, ll, L] [L, r, l] -> [ll, l]
+        E = np.tensordot(Lp_list[i], E, axes=([0, 1], [0, 1]))
+        Rp = np.tensordot(A_list[i + 1], Rp, axes=([0, 2], [0, 2]))
         E_list.append(E[None][0])
 
     return E_list
+
 
 def right_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
     '''
@@ -661,15 +672,15 @@ def right_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
     '''
     L = len(A_list)
     tot_trunc_err = 0.
-    for i in range(L-1, 0, -1):
+    for i in range(L - 1, 0, -1):
         d1, chi1, chi2 = A_list[i].shape
         X, Y, Z = svd(np.reshape(np.transpose(A_list[i], [1, 0, 2]), [chi1, d1 * chi2]),
-                                full_matrices=0)
+                      full_matrices=0)
 
         if no_trunc:
             chi1 = np.size(Y)
         else:
-            chi1 = np.sum(Y>1e-14)
+            chi1 = np.sum(Y > 1e-14)
 
         if chi is not None:
             chi1 = np.amin([chi1, chi])
@@ -688,13 +699,14 @@ def right_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
 
         A_list[i] = np.transpose(Z.reshape([chi1, d1, chi2]), [1, 0, 2])
         R = np.dot(X, np.diag(Y))
-        new_A = np.tensordot(A_list[i-1], R, axes=([2], [0]))  #[p, 1l, (1r)] [(2l), 2r]
-        A_list[i-1] = new_A
+        new_A = np.tensordot(A_list[i - 1], R, axes=([2], [0]))  # [p, 1l, (1r)] [(2l), 2r]
+        A_list[i - 1] = new_A
 
     if normalized:
         A_list[0] = A_list[0] / np.linalg.norm(A_list[0])
 
     return A_list, tot_trunc_err
+
 
 def left_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
     '''
@@ -705,15 +717,15 @@ def left_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
     '''
     L = len(A_list)
     tot_trunc_err = 0
-    for i in range(L-1):
+    for i in range(L - 1):
         d1, chi1, chi2 = A_list[i].shape
         X, Y, Z = svd(np.reshape(A_list[i], [d1 * chi1, chi2]),
-                                full_matrices=0)
+                      full_matrices=0)
 
         if no_trunc:
             chi2 = np.size(Y)
         else:
-            chi2 = np.sum(Y>1e-14)
+            chi2 = np.sum(Y > 1e-14)
 
         if chi is not None:
             chi2 = np.amin([chi2, chi])
@@ -727,18 +739,19 @@ def left_canonicalize(A_list, no_trunc=False, chi=None, normalized=True):
         if normalized:
             Y = Y / np.linalg.norm(Y)
 
-        X = X[: ,arg_sorted_idx]
+        X = X[:, arg_sorted_idx]
         Z = Z[arg_sorted_idx, :]
 
         A_list[i] = X.reshape([d1, chi1, chi2])
         R = np.dot(np.diag(Y), Z)
-        new_A = np.tensordot(R, A_list[i+1], axes=([1], [1]))  #[1l,(1r)],[p, (2l), 2r]
-        A_list[i+1] = np.transpose(new_A, [1, 0, 2])
+        new_A = np.tensordot(R, A_list[i + 1], axes=([1], [1]))  # [1l,(1r)],[p, (2l), 2r]
+        A_list[i + 1] = np.transpose(new_A, [1, 0, 2])
 
     if normalized:
         A_list[-1] = A_list[-1] / np.linalg.norm(A_list[-1])
 
     return A_list, tot_trunc_err
+
 
 def get_entanglement(A_list):
     '''
@@ -751,28 +764,29 @@ def get_entanglement(A_list):
     '''
     L = len(A_list)
     copy_A_list = [A.copy() for A in A_list]
-    ent_list = [None] * (L-1)
-    for i in range(L-1, 0, -1):
+    ent_list = [None] * (L - 1)
+    for i in range(L - 1, 0, -1):
         d1, chi1, chi2 = copy_A_list[i].shape
         X, Y, Z = svd(np.reshape(np.transpose(copy_A_list[i], [1, 0, 2]), [chi1, d1 * chi2]),
-                                full_matrices=0)
+                      full_matrices=0)
 
-        chi1 = np.sum(Y>1e-14)
+        chi1 = np.sum(Y > 1e-14)
 
         arg_sorted_idx = (np.argsort(Y)[::-1])[:chi1]
         Y = Y[arg_sorted_idx]
-        X = X[: ,arg_sorted_idx]
+        X = X[:, arg_sorted_idx]
         Z = Z[arg_sorted_idx, :]
 
-        copy_A_list[i]   = np.transpose(Z.reshape([chi1, d1, chi2]), [1, 0, 2])
+        copy_A_list[i] = np.transpose(Z.reshape([chi1, d1, chi2]), [1, 0, 2])
         R = np.dot(X, np.diag(Y))
-        new_A = np.tensordot(copy_A_list[i-1], R, axes=([2], [0]))  #[p, 1l, (1r)] [(2l), 2r]
-        copy_A_list[i-1] = new_A
+        new_A = np.tensordot(copy_A_list[i - 1], R, axes=([2], [0]))  # [p, 1l, (1r)] [(2l), 2r]
+        copy_A_list[i - 1] = new_A
 
-        bi_ent = -(Y**2).dot(np.log(Y**2))
-        ent_list[i-1] = bi_ent
+        bi_ent = -(Y ** 2).dot(np.log(Y ** 2))
+        ent_list[i - 1] = bi_ent
 
     return ent_list
+
 
 def get_renyi_n_entanglement(A_list, n):
     '''
@@ -785,26 +799,25 @@ def get_renyi_n_entanglement(A_list, n):
     '''
     L = len(A_list)
     copy_A_list = [A.copy() for A in A_list]
-    ent_list = [None] * (L-1)
-    for i in range(L-1, 0, -1):
+    ent_list = [None] * (L - 1)
+    for i in range(L - 1, 0, -1):
         d1, chi1, chi2 = copy_A_list[i].shape
         X, Y, Z = svd(np.reshape(np.transpose(copy_A_list[i], [1, 0, 2]), [chi1, d1 * chi2]),
-                                full_matrices=0)
+                      full_matrices=0)
 
-        chi1 = np.sum(Y>1e-14)
+        chi1 = np.sum(Y > 1e-14)
 
         arg_sorted_idx = (np.argsort(Y)[::-1])[:chi1]
         Y = Y[arg_sorted_idx]
-        X = X[: ,arg_sorted_idx]
+        X = X[:, arg_sorted_idx]
         Z = Z[arg_sorted_idx, :]
 
-        copy_A_list[i]   = np.transpose(Z.reshape([chi1, d1, chi2]), [1, 0, 2])
+        copy_A_list[i] = np.transpose(Z.reshape([chi1, d1, chi2]), [1, 0, 2])
         R = np.dot(X, np.diag(Y))
-        new_A = np.tensordot(copy_A_list[i-1], R, axes=([2], [0]))  #[p, 1l, (1r)] [(2l), 2r]
-        copy_A_list[i-1] = new_A
+        new_A = np.tensordot(copy_A_list[i - 1], R, axes=([2], [0]))  # [p, 1l, (1r)] [(2l), 2r]
+        copy_A_list[i - 1] = new_A
 
-        bi_ent = np.log(np.sum(Y**(2*n))) / (1-n)
-        ent_list[i-1] = bi_ent
+        bi_ent = np.log(np.sum(Y ** (2 * n))) / (1 - n)
+        ent_list[i - 1] = bi_ent
 
     return ent_list
-
