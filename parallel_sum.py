@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import data_loader
 import mps_func
 import tqdm
+import pickle
 
 class DataProcessing:
     def __init__(self, dataset, even_distribution=False, max_nb_images=None):
@@ -190,10 +191,13 @@ pooled_test_data = DataProcessing(test_data)
 
 print("pooled")
 
-for chi in tqdm.tqdm([2, 30, 40, 50]):
+for chi in tqdm.tqdm([2,]):
     model = MPS_model(pooled_training_data.images_dict, chi=chi)
 
-    import pickle; pickle.dump(model.mps_dict, open('/results/training_chi%d.pkl' % chi, 'wb'))
+
+    with open(f'results/original/parallel_chi{chi}.p', 'wb') as f:
+        pickle.dump(model.mps_dict, f)
+    # pickle.dump(model.mps_dict, open('/results/training_chi%d.pkl' % chi, 'wb'))
 
 # print("MPS created")
 # print(mps_func.MPS_dot(model.mps_dict[0], model.mps_dict[0]))
