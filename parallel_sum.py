@@ -150,7 +150,7 @@ class MPS_model:
                 mps_iter_list.append(mps_phi_x)
 
             while(len(mps_iter_list)>1):
-                print("new iter")
+                # print("new iter")
                 # for mm in mps_iter_list:
                 #     print(mm[50].shape)
 
@@ -190,7 +190,7 @@ pooled_test_data = DataProcessing(test_data)
 
 print("pooled")
 
-for chi in tqdm.tqdm([30, 40, 50]):
+for chi in tqdm.tqdm([2, 30, 40, 50]):
     model = MPS_model(pooled_training_data.images_dict, chi=chi)
 
     import pickle; pickle.dump(model.mps_dict, open('/results/training_chi%d.pkl' % chi, 'wb'))
