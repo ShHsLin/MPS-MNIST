@@ -25,36 +25,38 @@ class DataPreprocessing:
     H: Length of Image in pixels
     W: Width of image in pixels
     """
-    def __init__(self, dataset, even_distribution=False, max_nb_images=None, name='train'):
+    def __init__(self, dataset, even_distribution=False, max_nb_images=None, name='train', force_run=False):
         self.max_nb_images = max_nb_images
         self.original_images, self.labels = dataset
 
         images_course = self.mean_pooling(self.original_images, 2)
-        self.data = save_data_to_pickle(self.get_digits, (images_course, self.labels), f'results/preprocessing/{name}.p')
+        self.data = save_data_to_pickle(self.get_digits, (images_course, self.labels), f'results/preprocessing/{name}.p', force_run=force_run)
 
         if even_distribution:
             self.data = self.create_even_distribution(self.data)
 
     @staticmethod
-    def flat_to_2d(batch):
-        H = W = int(np.sqrt(batch.shape[-1]))
-        return batch.reshape((-1, H, W))
+    def flat_to_2d(data):
+        H = W = int(np.sqrt(data.shape[-1]))
+        return data.reshape((-1, H, W))
 
     @staticmethod
-    def square_to_flat(batch):
-        H = batch.shape[-1]
-        return batch.reshape((-1, H ** 2))
+    def square_to_flat(data):
+        H = data.shape[-1]
+        return data.reshape((-1, H ** 2))
 
     def mean_pooling(self, images_, filter_size):
         images_2d = self.flat_to_2d(images_)
         pooled_image = skimage.measure.block_reduce(images_2d, (1, filter_size, filter_size), np.mean)
         result = self.square_to_flat(pooled_image)
+        result = self.scale(result, domain=(0, 1))
         return result
 
-    # @staticmethod
-    # def scale(images_, domain=(0, 255), range_=(0, 1)):
-    #     scaled = images_ / (domain[1] - domain[0]) * (range_[1] - range_[0]) + range_[0]
-    #     return scaled
+
+    @staticmethod
+    def scale(images_, domain=(0, 255), range_=(0, 1)):
+        scaled = images_ / (domain[1] - domain[0]) * (range_[1] - range_[0]) + range_[0]
+        return scaled
 
     @staticmethod
     def get_digits(mat, labels_):
@@ -92,7 +94,20 @@ def overlap_diag():
     pass
 
 
-@timeit
+def overlap_same_dims(psi1, psi2):
+    @jit(nopython=True)
+    def contract_physical(node_idx):
+        return np.ascontiguousarray(psi1[:, node_idx, :]) @ np.ascontiguousarray(
+            psi2[:, node_idx, :].T.conj())
+
+    product = contract_physical(0)
+    for i in range(1, 196):
+        product *= contract_physical(i)
+    norm = np.sum(product)
+    norm = np.abs(norm)
+    return norm
+
+
 def get_norm_label(label_data):
     """
     @param label_data: (N, WxH, 2)
@@ -115,16 +130,23 @@ def get_norm_label(label_data):
     norm = np.abs(norm)
     return norm
 
-def get_norms(data):
+def get_norms(data, printout=False):
     norms = []
-    for label_data in data:
+    for label_data in tqdm.tqdm(data):
         norm = get_norm_label(label_data)
         norms.append(norm)
+        if printout:
+            print(norm)
     return norms
 
-def normalize(data, basis):
-    norms = np.array(save_data_to_pickle(get_norms, (data,), f'results/{basis}/norm.p'))
-    return data / norms[:, None, None, None]
+def normalize(data_, basis=None, printout=False, force_run=False):
+    data = data_.copy()
+    norms = np.array(save_data_to_pickle(get_norms, (data,printout), f'results/{basis}/norm.p', force_run=force_run))
+    for i in range(len(data)):
+        data[i] /= (norms[i] ** (1 / (2 * data[i].shape[1])))
+    if printout:
+        print(norms)
+    return data
 
 
 def get_accuracy(test_images, test_labels, nb_tests_cap=None):
@@ -137,6 +159,32 @@ def get_accuracy(test_images, test_labels, nb_tests_cap=None):
     preds = np.array(preds)
     accuracy = np.sum(test_labels[:nb_tests_cap] == preds) / nb_tests_cap
     return accuracy
+
+def get_truncation_overlap(data, data_exact):
+    """
+    cwfs: (list(N),list(D),L,P,R)
+    ewfs: (D,N,HxW, P)
+    @return:
+    """
+    overlaps = []
+    for cmps, emps in tqdm.tqdm(zip(data, data_exact)):
+        contract = np.ones((1, 1))
+        for i in range(len(cmps)):
+            """
+            emps: (N,HxW,P)
+            cmps[i]: (L,P,R)
+            """
+            physical = np.tensordot(emps[:, i, :], cmps[i].conj(), (1,1))
+            """"
+            (N,L,R)
+            """
+            contract = np.ascontiguousarray(contract) @ np.ascontiguousarray(physical)
+
+
+        overlaps.append(np.linalg.norm(np.sum(contract)))
+
+    return overlaps
+
 
 if __name__ == '__main__':
     mnist_data_path = os.path.join('data', 'mnist.pkl.gz')
@@ -151,6 +199,6 @@ if __name__ == '__main__':
 
     basis = 'ortho'
     train_orth = feature_maps.ortho(train.data)
-    normalize(train_orth, basis)
+    train_normalized = normalize(train_orth, basis)
 
 

@@ -36,19 +36,27 @@ def timeit(func):
     return inner
 
 
-def save_data_to_pickle(func, arguments, file_path, run_always=False):
+def save_data_to_pickle(func, arguments, file_path, force_run=False):
     """
 
     wrap around the function to call to save the returned value. Arguments should be in tuple or list
     If path already exists, it will load the data and not run the func
     example: save_data_to_pickle(np.array, (some_list,), array.p)
 
+    If path contains 'None' no saving and loading will be performed
+
     """
-    if os.path.exists(file_path) and not run_always:
+
+    if 'None' in file_path:
+        result = func(*arguments)
+        return result
+
+    if os.path.exists(file_path) and not force_run:
 
         with open(file_path, 'rb') as f:
             print('Data already exists, loading data...')
             result = pickle.load(f)
+
 
     else:
         if not os.path.exists(os.path.dirname(file_path)):

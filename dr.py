@@ -177,8 +177,8 @@ class DataProcessing:
 class Normalization:
     def __init__(self, batch, mapping_basis):
         nb_images = batch[0].shape[0]
-        norms_save_path = os.path.join('results', mapping_basis, 'norms.p')
-        self.norms = save_data_to_pickle(self.get_norms_all_digits, (batch,), norms_save_path)
+        norms_save_path = os.path.join('results',mapping_basis,'norms','norm_{}.p'.format(nb_images))
+        self.norms = save_data_to_pickle(self.get_norms_all_digits, (batch,), norms_save_path, run_always=False)
         self.wfs = self.normalize_all_digits(batch, self.norms)
 
     @staticmethod
