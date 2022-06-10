@@ -3,6 +3,7 @@ import pickle
 import sys
 import time
 from contextlib import contextmanager
+import numpy as np
 
 
 @contextmanager
@@ -27,6 +28,7 @@ def timeit(func):
     """
     Use as decorator
     """
+
     def inner(*args, **kwargs):
         t0 = time.time()
         result = func(*args, **kwargs)
@@ -67,3 +69,34 @@ def save_data_to_pickle(func, arguments, file_path, force_run=False):
             pickle.dump(result, f)
 
     return result
+
+
+def get_dims(iterable_, index=0):
+    dims = []
+    types = []
+    while True:
+        try:
+            type_ = type(iterable_)
+            len_ = len(iterable_)
+            if len_ < index + 1:
+                index_ = 0
+            else:
+                index_ = index
+            types.append(type_)
+            dims.append(len_)
+            iterable_ = iterable_[index_]
+
+        except TypeError:
+            print(dims)
+            print(types)
+            break
+    return dims, types
+
+def transpose_wf_compressed(wf_compressed):
+    """
+    Transposed first dims of wf_compressed:
+    (list(N),list(D),L,P,R) -> (list(D),list(n),L,P,R)
+    @param wf_compressed:
+    @return:
+    """
+    return [np.array(x) for x in zip(*wf_compressed)]
