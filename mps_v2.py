@@ -9,6 +9,7 @@ dont put anything in init that takes time
 6) comments, documentation
 """
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 import skimage
 import tqdm
@@ -18,7 +19,22 @@ from scipy.stats.mstats import gmean
 import feature_maps
 from data_loader import load_data
 from useful_funcs import *
+from cycler import cycler
+fontsize = 12
+plt.rcParams['axes.labelsize'] = fontsize
+plt.rcParams['axes.titlesize'] = fontsize
+plt.rcParams['axes.prop_cycle'] = cycler('color', ['#4C72B0', '#55A868', '#C44E52', '#8172B2', '#CCB974', '#64B5CD'])
 
+plt.rcParams['legend.fontsize'] = fontsize
+plt.rcParams['legend.title_fontsize'] = fontsize
+plt.rcParams['xtick.labelsize'] = fontsize
+plt.rcParams['ytick.labelsize'] = fontsize
+plt.rcParams['font.family'] = 'Times New Roman'
+plt.rcParams['mathtext.fontset'] = 'cm'
+plt.rcParams['mathtext.default'] = 'regular'
+plt.rcParams['text.usetex'] =  'false'
+# plt.rcParams['axes.grid'] = 'True'
+plt.rcParams['figure.figsize'] =  3,3.5
 
 class DataPreprocessing:
     """
@@ -132,6 +148,12 @@ def _get_norm_label(label_data):
 
 
 def get_norms(wf_full, printout=False):
+    """
+    Calculate the norms of the wavefunction corresponding to each label/digit
+    @param wf_full: (D,N,HxW, P)
+    @param printout: If true, print out the norms
+    @return:
+    """
     norms = []
     for label_data in tqdm.tqdm(wf_full):
         norm = _get_norm_label(label_data)
@@ -141,9 +163,17 @@ def get_norms(wf_full, printout=False):
     return norms
 
 
-def normalize(wf_full, basis=None, printout=False, force_run=False):
+def normalize(wf_full, feature_map=None, printout=False, force_run=False):
+    """
+
+    @param wf_full: (D,N,HxW, P)
+    @param feature_map: feature map folder to save to
+    @param printout: If true, print out the norms
+    @param force_run: If true, run always, also when the file corresponding to the data already exists
+    @return:
+    """
     data = wf_full.copy()
-    norms = np.array(save_data_to_pickle(get_norms, (data, printout), f'results/{basis}/norms.p', force_run=force_run))
+    norms = np.array(save_data_to_pickle(get_norms, (data, printout), f'results/{feature_map}/norms.p', force_run=force_run))
     for i in range(len(data)):
         data[i] /= (norms[i] ** (1 / (2 * data[i].shape[1])))
     if printout:
@@ -191,7 +221,15 @@ def _get_prediction(wf_compressed, image):
     return prediction
 
 
-def get_accuracy(wf_compressed, test_images, test_labels, nb_tests_cap=None):
+def get_accuracy(wf_compressed: list, test_images: np.ndarray, test_labels: np.ndarray, nb_tests_cap: int = None) -> float:
+    """
+    @param wf_compressed: (list(N),list(D),L,P,R)
+    wf_compressed_tranpose: (list(D),list(N),L,P,R)
+    @param test_images: (N_test, WxH, P)
+    @param test_labels: (N_test,)
+    @param nb_tests_cap: Number of Images to use for testing, if None, take all.
+    @return:
+    """
     if nb_tests_cap is None:
         nb_tests_cap = len(test_images)
 
@@ -369,6 +407,8 @@ path: {self.path}
         return output
 
 
+
+
 if __name__ == '__main__':
     mnist_data_path = os.path.join('data', 'mnist.pkl.gz')
 
@@ -379,20 +419,47 @@ if __name__ == '__main__':
     val_o = DataPreprocessing(val_data, name='val', force_run=True)
     test_o = DataPreprocessing(test_data, name='test', force_run=True)
 
-    basis = 'origin'
+    basis = 'ortho'
     nb_sweeps = 2
 
-    train_not_normalized_data = feature_maps.origin(train_o.data)
+    train_not_normalized_data = feature_maps.ortho(train_o.data)
     train = normalize(train_not_normalized_data, basis)
-    val = feature_maps.origin(val_o.data)
+    val = feature_maps.ortho(val_o.data)
 
+    performance_path = f'results/{basis}/performance_s{nb_sweeps}.csv'
+    performance_df = open_csv(performance_path)
     for chi in [2, 10, 20, 30, 50]:
         print()
-        print('-'*100)
+        print('-' * 100)
         print(f'𝜒: {chi}')
         c = CompressedWFS(chi, train, basis)
         for i in range(nb_sweeps):
             c.sweep()
-        # overlap = get_truncation_overlap(c.wf_compressed, train, average=True)
-        acc = get_accuracy(c.wf_compressed, val, val_o.labels, 10000)
-        print(acc)
+
+        save_dict = {'chi': chi,
+                     'truncation_overlap': (get_truncation_overlap, [c.wf_compressed, train, True]),
+                     'accuracy': (get_accuracy, (c.wf_compressed, val, val_o.labels))}
+        save_to_csv(performance_df, save_dict, performance_path)
+
+
+
+    fig, ax = plt.subplots()
+    ax2 = ax.twinx()
+    name_mapping = {'ortho':'ortho',
+                    'origin':'non-ortho'}
+
+    for feature_map in name_mapping.keys():
+        performance_path = f'results/{feature_map}/performance_s{nb_sweeps}.csv'
+        df = open_csv(performance_path)
+
+
+        ax.plot(df['chi'], df['accuracy'], '-o', label = name_mapping[feature_map])
+        ax2.plot(df['chi'], df['truncation_overlap'], '--o', label = name_mapping[feature_map])
+        ax.grid(True)
+        ax.set_ylabel('$Accuracy$')
+        ax2.set_ylabel(r'Mean of overlaps $| \langle \Sigma_l^\chi | \Sigma_l \rangle |^2$')
+        ax.set_xlabel('$\chi$')
+        plt.legend(loc='lower right')
+    plt.savefig('results/performance_plot.png', bbox_inches='tight')
+
+    plt.show()
